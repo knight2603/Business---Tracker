@@ -21,6 +21,8 @@ class FinanceController extends Controller
         [$start, $end, $month] = $this->period($request);
         $income = (float) $request->user()->incomes()->whereBetween('received_at', [$start, $end])->sum('amount');
         $expenses = $request->user()->expenses()->whereBetween('spent_at', [$start, $end])->get();
+        $activeDebts = $request->user()->debts()->where('status', 'active')->orderBy('due_date')->get();
+        $activeDebtTotal = round((float) $activeDebts->sum('amount'), 2);
 
         $categories = [];
         foreach (self::CATEGORIES as $key => $category) {
@@ -33,7 +35,9 @@ class FinanceController extends Controller
                 ...$category,
                 'limit' => $limit,
                 'spent' => $spent,
-                'remaining' => round($limit - $spent, 2),
+                'remaining' => round($limit - $spent - ($key === 'needs' ? $activeDebtTotal : 0), 2),
+                'committed' => $key === 'needs' ? $activeDebtTotal : 0,
+                'debts' => $key === 'needs' ? $activeDebts : [],
                 'checked_count' => $checkedCount,
                 'total_count' => $totalCount,
                 'progress' => $totalCount > 0 ? round($checkedCount / $totalCount * 100) : 0,

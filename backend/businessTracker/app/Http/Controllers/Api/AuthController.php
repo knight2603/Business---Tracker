@@ -15,9 +15,9 @@ class AuthController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['required', 'email', 'max:255', 'regex:/^[A-Z0-9._%+-]+@gmail\.com$/i', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
+        ], ['email.regex' => 'El correo debe terminar en @gmail.com.']);
 
         $user = User::create($data);
 

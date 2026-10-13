@@ -42,11 +42,17 @@ Las respuestas son JSON. Los montos deben ser mayores que cero; Laravel devuelve
 
 ## Cuentas y sesiones
 
-- `POST /api/register`: recibe `name`, `email`, `password` y `password_confirmation`; crea la cuenta e inicia sesión.
+- `POST /api/register`: recibe `name`, `email` (debe pertenecer al dominio `gmail.com`), `password` y `password_confirmation`; crea la cuenta e inicia sesión.
 - `POST /api/login`: recibe `email` y `password`.
 - `GET /api/me`: devuelve el usuario de la sesión actual.
 - `POST /api/logout`: revoca el token actual.
 - `POST /api/profile`: actualiza `email` y admite `profile_photo` (JPG/PNG/WebP, máximo 5 MB); para cambiar contraseña recibe `current_password`, `password` y `password_confirmation`.
+- `GET /api/savings`: devuelve las clasificaciones personales de ahorro, su historial y el total acumulado.
+- `POST /api/savings/categories`: crea una clasificación con `name` y `color` (`green`, `blue`, `violet` u `orange`).
+- `POST /api/savings/categories/{categoryId}/transactions`: recibe `type` (`deposit` o `withdrawal`), `amount`, `date` y una `description` opcional. Los retiros no pueden superar el saldo disponible.
+- `GET /api/debts`: lista deudas, fechas de cobro y total activo.
+- `POST /api/debts`: recibe `name`, `amount` y `due_date`; la fecha puede ser pasada o futura.
+- `POST /api/debts/{debtId}/pay`: marca la deuda pagada y registra el pago como gasto realizado en Necesidades (50%), con trazabilidad en Movimientos.
 
 Las rutas de balance, metas, ingresos y gastos requieren `Authorization: Bearer <token>`. El token aleatorio vence en 30 días y solo se almacena su hash en la base de datos. El frontend conserva el token en el navegador, muestra el nombre de la cuenta activa y permite cerrar sesión. Cada movimiento y meta queda asociado a su dueño, así que las cuentas solo pueden consultar sus propios datos. Las fotos de metas se guardan en el disco público de Laravel; ejecuta `php artisan storage:link` una vez por instalación.
 

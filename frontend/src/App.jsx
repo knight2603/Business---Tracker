@@ -61,7 +61,7 @@ function AuthScreen({ onAuthenticated }) {
 
   return <main className="auth-page"><section className="auth-card"><a className="brand auth-brand" href="#inicio"><span className="brand-mark">b.</span><span>balance<span className="brand-dot">.</span></span></a><div className="eyebrow">TUS FINANZAS, A TU RITMO</div><h1>{registering ? 'Crea tu cuenta' : 'Qué bueno verte'}</h1><p className="auth-subtitle">{registering ? 'Empieza a organizar tu dinero con la regla 50/30/20.' : 'Inicia sesión para ver tu balance personal.'}</p>
     {error && <div className="flash flash-error" role="alert">{error}</div>}
-    <form onSubmit={submit} className="auth-form">{registering && <label>Nombre<input required maxLength="120" autoComplete="name" placeholder="Tu nombre" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>}<label>Correo electrónico<input required type="email" autoComplete="email" placeholder="tu@correo.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label><label>Contraseña<input required type="password" minLength="8" autoComplete={registering ? 'new-password' : 'current-password'} placeholder={registering ? 'Mínimo 8 caracteres' : 'Tu contraseña'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>{registering && <label>Confirma tu contraseña<input required type="password" minLength="8" autoComplete="new-password" placeholder="Repite tu contraseña" value={form.password_confirmation} onChange={(e) => setForm({ ...form, password_confirmation: e.target.value })} /></label>}<button className="primary-button" disabled={saving}>{saving ? 'Un momento…' : registering ? 'Crear cuenta' : 'Iniciar sesión'} <span>→</span></button></form>
+    <form onSubmit={submit} className="auth-form">{registering && <label>Nombre<input required maxLength="120" autoComplete="name" placeholder="Tu nombre" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>}<label>Correo electrónico<input required type="email" autoComplete="email" pattern={registering ? '^[A-Z0-9._%+-]+@gmail\\.com$' : undefined} title={registering ? 'Usa una dirección que termine en @gmail.com' : undefined} placeholder={registering ? 'tu@gmail.com' : 'tu@correo.com'} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />{registering && <small className="auth-hint">Para crear tu cuenta, usa un correo @gmail.com.</small>}</label><label>Contraseña<input required type="password" minLength="8" autoComplete={registering ? 'new-password' : 'current-password'} placeholder={registering ? 'Mínimo 8 caracteres' : 'Tu contraseña'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>{registering && <label>Confirma tu contraseña<input required type="password" minLength="8" autoComplete="new-password" placeholder="Repite tu contraseña" value={form.password_confirmation} onChange={(e) => setForm({ ...form, password_confirmation: e.target.value })} /></label>}<button className="primary-button" disabled={saving}>{saving ? 'Un momento…' : registering ? 'Crear cuenta' : 'Iniciar sesión'} <span>→</span></button></form>
     <div className="auth-switch">{registering ? '¿Ya tienes una cuenta?' : '¿Todavía no tienes cuenta?'} <button onClick={() => { setMode(registering ? 'login' : 'register'); setError('') }}>{registering ? 'Inicia sesión' : 'Crear cuenta'}</button></div>
   </section><p className="auth-footnote">Cada peso con un propósito. <strong>balance<span className="brand-dot">.</span></strong></p></main>
 }
@@ -128,6 +128,23 @@ function App() {
   const [selectedAccountId, setSelectedAccountId] = useState(null)
   const [accountForm, setAccountForm] = useState({ name: '', type: 'bank', initial_balance: '' })
   const [depositForms, setDepositForms] = useState({})
+  const [savingsCategories, setSavingsCategories] = useState([])
+  const [savingsTotal, setSavingsTotal] = useState(0)
+  const [savingsLoading, setSavingsLoading] = useState(false)
+  const [showSavingsForm, setShowSavingsForm] = useState(false)
+  const [savingsSaving, setSavingsSaving] = useState(false)
+  const [savingsForm, setSavingsForm] = useState({ name: '', color: 'green' })
+  const [savingsTxnForms, setSavingsTxnForms] = useState({})
+  const [savingsTxnId, setSavingsTxnId] = useState(null)
+  const [debts, setDebts] = useState([])
+  const [debtActiveTotal, setDebtActiveTotal] = useState(0)
+  const [debtsLoading, setDebtsLoading] = useState(false)
+  const [debtSaving, setDebtSaving] = useState(false)
+  const [debtPayingId, setDebtPayingId] = useState(null)
+  const [showDebtForm, setShowDebtForm] = useState(false)
+  const [debtForm, setDebtForm] = useState({ name: '', amount: '', due_date: today() })
+  const [debtCalendarMonth, setDebtCalendarMonth] = useState(today().slice(0, 7))
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState(today())
   const [goalsInfo, setGoalsInfo] = useState({ monthly_income: 0, savings_capacity: 0 })
   const [goalsLoading, setGoalsLoading] = useState(false)
   const [goalSaving, setGoalSaving] = useState(false)
@@ -194,6 +211,22 @@ function App() {
     } catch (err) { setError(err.message) } finally { setAccountsLoading(false) }
   }, [])
 
+  const refreshSavings = useCallback(async () => {
+    setSavingsLoading(true)
+    try {
+      const result = await api('/savings')
+      setSavingsCategories(result.categories); setSavingsTotal(result.total_saved); setError('')
+    } catch (err) { setError(err.message) } finally { setSavingsLoading(false) }
+  }, [])
+
+  const refreshDebts = useCallback(async () => {
+    setDebtsLoading(true)
+    try {
+      const result = await api('/debts')
+      setDebts(result.debts); setDebtActiveTotal(result.active_total); setError('')
+    } catch (err) { setError(err.message) } finally { setDebtsLoading(false) }
+  }, [])
+
   useEffect(() => {
     if (!localStorage.getItem('balance_token')) return
     api('/me').then((result) => { setUser(result.user); setProfileForm((form) => ({ ...form, email: result.user.email })); setLoading(true) }).catch(() => localStorage.removeItem('balance_token')).finally(() => setAuthLoading(false))
@@ -229,6 +262,18 @@ function App() {
     queueMicrotask(() => { if (active) void refreshAccounts() })
     return () => { active = false }
   }, [refreshAccounts, user, view])
+  useEffect(() => {
+    if (!user || view !== 'savings') return
+    let active = true
+    queueMicrotask(() => { if (active) void refreshSavings() })
+    return () => { active = false }
+  }, [refreshSavings, user, view])
+  useEffect(() => {
+    if (!user) return
+    let active = true
+    queueMicrotask(() => { if (active) void refreshDebts() })
+    return () => { active = false }
+  }, [refreshDebts, user])
 
   useEffect(() => () => { if (photoPreview) URL.revokeObjectURL(photoPreview) }, [photoPreview])
   useEffect(() => () => { if (profilePhotoPreview.startsWith('blob:')) URL.revokeObjectURL(profilePhotoPreview) }, [profilePhotoPreview])
@@ -344,6 +389,46 @@ function App() {
     } catch (err) { setError(err.message) } finally { setProfileSaving(false) }
   }
 
+  async function submitSavingsCategory(event) {
+    event.preventDefault(); setSavingsSaving(true); setError(''); setNotice('')
+    try {
+      await api('/savings/categories', { method: 'POST', body: JSON.stringify(savingsForm) })
+      setSavingsForm({ name: '', color: 'green' }); setShowSavingsForm(false)
+      setNotice('Clasificación de ahorro creada.')
+      await refreshSavings()
+    } catch (err) { setError(err.message) } finally { setSavingsSaving(false) }
+  }
+
+  async function submitSavingsTransaction(event, category) {
+    event.preventDefault(); setSavingsTxnId(category.id); setError(''); setNotice('')
+    const form = savingsTxnForms[category.id] || {}
+    try {
+      const result = await api(`/savings/categories/${category.id}/transactions`, { method: 'POST', body: JSON.stringify(form) })
+      setSavingsTxnForms((previous) => ({ ...previous, [category.id]: { ...previous[category.id], amount: '', description: '', date: today(), type: form.type || 'deposit' } }))
+      setNotice(result.message)
+      await refreshSavings()
+    } catch (err) { setError(err.message) } finally { setSavingsTxnId(null) }
+  }
+
+  async function submitDebt(event) {
+    event.preventDefault(); setDebtSaving(true); setError(''); setNotice('')
+    try {
+      await api('/debts', { method: 'POST', body: JSON.stringify(debtForm) })
+      setDebtForm({ name: '', amount: '', due_date: today() }); setShowDebtForm(false)
+      setNotice('Deuda registrada en Necesidades (50%) con su fecha de cobro.')
+      await Promise.all([refreshDebts(), refresh()])
+    } catch (err) { setError(err.message) } finally { setDebtSaving(false) }
+  }
+
+  async function payDebt(debt) {
+    setDebtPayingId(debt.id); setError(''); setNotice('')
+    try {
+      const result = await api(`/debts/${debt.id}/pay`, { method: 'POST' })
+      setNotice(result.message)
+      await Promise.all([refresh(), refreshDebts(), view === 'movements' ? refreshMovements() : Promise.resolve()])
+    } catch (err) { setError(err.message) } finally { setDebtPayingId(null) }
+  }
+
   if (authLoading) return <main className="auth-page"><div className="loading-indicator">Cargando tu sesión…</div></main>
   if (!user) return <AuthScreen onAuthenticated={authenticatedUser} />
 
@@ -355,6 +440,18 @@ function App() {
   const suggestedInstallment = termMonths > 0 ? Number(goalForm.target_amount || 0) / termMonths : 0
   const canAffordGoal = suggestedInstallment > 0 && suggestedInstallment <= goalsInfo.savings_capacity
   const maxGoalTerm = goalForm.term_unit === 'year' ? 10 : 120
+  const debtMonthDate = new Date(`${debtCalendarMonth}-01T12:00:00`)
+  const debtCalendarOffset = (debtMonthDate.getDay() + 6) % 7
+  const debtDaysInMonth = new Date(debtMonthDate.getFullYear(), debtMonthDate.getMonth() + 1, 0).getDate()
+  const debtCalendarCells = [...Array(debtCalendarOffset).fill(null), ...Array.from({ length: debtDaysInMonth }, (_, index) => index + 1)]
+  const selectedDateDebts = debts.filter((debt) => debt.status === 'active' && String(debt.due_date).slice(0,10) === calendarSelectedDate)
+  const shiftDebtCalendar = (offset) => {
+    const nextMonth = new Date(debtMonthDate)
+    nextMonth.setMonth(nextMonth.getMonth() + offset)
+    const nextKey = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`
+    setDebtCalendarMonth(nextKey)
+    setCalendarSelectedDate(`${nextKey}-01`)
+  }
   return <div className={`app-shell theme-${theme}`}>
     <aside className="sidebar">
       <a className="brand" href="#inicio" onClick={() => setView('summary')}><span className="brand-mark">b.</span><span>balance<span className="brand-dot">.</span></span></a>
@@ -364,12 +461,15 @@ function App() {
       <button aria-label="Estadísticas" className={`nav-item ${view === 'statistics' ? 'active' : ''}`} onClick={() => setView('statistics')}><span>▥</span> Estadísticas</button>
       <button aria-label="Metas" className={`nav-item ${view === 'goals' ? 'active' : ''}`} onClick={() => setView('goals')}><span>◎</span> Metas</button>
       <button aria-label="Mis cuentas" className={`nav-item ${view === 'accounts' ? 'active' : ''}`} onClick={() => setView('accounts')}><span>▤</span> Mis cuentas</button>
+      <button aria-label="Ahorros" className={`nav-item ${view === 'savings' ? 'active' : ''}`} onClick={() => setView('savings')}><span>↗</span> Ahorros <small className="sidebar-savings-total">{currency(savingsTotal)}</small></button>
+      <button aria-label="Deudas" className={`nav-item ${view === 'debts' ? 'active' : ''}`} onClick={() => setView('debts')}><span>⌁</span> Deudas <small className="sidebar-savings-total">{currency(debtActiveTotal)}</small></button>
+      <button aria-label="Calendario" className={`nav-item ${view === 'calendar' ? 'active' : ''}`} onClick={() => setView('calendar')}><span>▦</span> Calendario</button>
       <button aria-label="Mi perfil" className={`nav-item ${view === 'profile' ? 'active' : ''}`} onClick={() => setView('profile')}><span>◉</span> Mi perfil</button>
       <div className="sidebar-bottom"><div className="avatar">{user.profile_photo_url ? <img src={assetUrl(user.profile_photo_url)} alt="" /> : user.name.charAt(0).toUpperCase()}</div><div><strong>{user.name}</strong><small>{user.email}</small></div><button className="logout-button" onClick={logout} title="Cerrar sesión" aria-label="Cerrar sesión">↪</button></div>
     </aside>
 
     <main className="main-content" id="inicio">
-      <header className="topbar"><div className="breadcrumb">Mi espacio <span>/</span> <strong>{{ summary: 'Resumen', movements: 'Movimientos', statistics: 'Estadísticas', goals: 'Metas', accounts: 'Mis cuentas', profile: 'Mi perfil' }[view]}</strong></div><div className="topbar-right"><button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Activar tema claro' : 'Activar tema oscuro'} title={theme === 'dark' ? 'Tema claro' : 'Tema oscuro'}>{theme === 'dark' ? '☀' : '☾'}<span>{theme === 'dark' ? 'Claro' : 'Oscuro'}</span></button><span className="live-dot" /> <span className="status-copy">Tus finanzas, en orden</span><div className="profile-avatar">{user.profile_photo_url ? <img src={assetUrl(user.profile_photo_url)} alt="" /> : user.name.charAt(0).toUpperCase()}</div><strong className="topbar-name">{user.name}</strong><button className="mobile-logout" onClick={logout}>Salir</button></div></header>
+      <header className="topbar"><div className="breadcrumb">Mi espacio <span>/</span> <strong>{{ summary: 'Resumen', movements: 'Movimientos', statistics: 'Estadísticas', goals: 'Metas', accounts: 'Mis cuentas', savings: 'Ahorros', debts: 'Deudas', calendar: 'Calendario', profile: 'Mi perfil' }[view]}</strong></div><div className="topbar-right"><button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Activar tema claro' : 'Activar tema oscuro'} title={theme === 'dark' ? 'Tema claro' : 'Tema oscuro'}>{theme === 'dark' ? '☀' : '☾'}<span>{theme === 'dark' ? 'Claro' : 'Oscuro'}</span></button><span className="live-dot" /> <span className="status-copy">Tus finanzas, en orden</span><div className="profile-avatar">{user.profile_photo_url ? <img src={assetUrl(user.profile_photo_url)} alt="" /> : user.name.charAt(0).toUpperCase()}</div><strong className="topbar-name">{user.name}</strong><button className="mobile-logout" onClick={logout}>Salir</button></div></header>
       <div className="page-content">
         {view === 'summary' ? <>
           <section className="page-heading"><div><div className="eyebrow">TU RESUMEN FINANCIERO</div><h1>Hola, {user.name.split(' ')[0]}<span className="brand-dot">.</span></h1><p>Una mirada clara a tu dinero y a tus metas.</p></div><label className="month-picker"><span>Período</span><input aria-label="Mes" type="month" value={month} onChange={(event) => { setLoading(true); setMonth(event.target.value) }} /></label></section>
@@ -394,6 +494,7 @@ function App() {
                 <div className="category-amounts"><div><strong>{currency(data.limit)}</strong><span>presupuesto</span></div><div className="spent"><strong>{currency(data.spent)}</strong><span>descontado</span></div></div>
                 <div className="check-progress-label"><span>Checklist</span><strong>{progress}% <small>({data.checked_count || 0}/{data.total_count || 0})</small></strong></div><div className="progress-track checklist-track"><span style={{ width: `${progress}%` }} /></div>
                 <div className="remaining-line"><span>Disponible</span><strong className={Number(data.remaining) < 0 ? 'over-budget' : ''}>{currency(data.remaining)}</strong></div>
+                {category.key === 'needs' && data.debts?.length > 0 && <div className="active-debts-panel"><div className="active-debts-heading"><strong>Deudas activas</strong><span>{currency(data.committed)} comprometido</span></div>{data.debts.map((debt) => <div className="active-debt-row" key={debt.id}><div><strong>{debt.name}</strong><small>Cobro: {new Intl.DateTimeFormat('es-CO',{dateStyle:'medium'}).format(new Date(`${String(debt.due_date).slice(0,10)}T12:00:00`))}</small></div><b>{currency(debt.amount)}</b><button type="button" disabled={debtPayingId === debt.id} onClick={() => payDebt(debt)}>{debtPayingId === debt.id ? '…' : 'Pagar'}</button></div>)}</div>}
                 <form className="expense-form" onSubmit={(event) => submitExpense(event, category.key)}><div className="expense-form-title">Agregar al checklist</div><input aria-label={`Descripción del gasto de ${category.name}`} required maxLength="120" placeholder="¿Qué vas a pagar o ahorrar?" value={expenseForms[category.key].description} onChange={(e) => setExpenseForms((prev) => ({ ...prev, [category.key]: { ...prev[category.key], description: e.target.value } }))} /><div className="expense-input-row"><input aria-label="Monto planificado" required type="number" min="0.01" step="0.01" placeholder="Monto $" value={expenseForms[category.key].amount} onChange={(e) => setExpenseForms((prev) => ({ ...prev, [category.key]: { ...prev[category.key], amount: e.target.value } }))} /><input aria-label="Fecha planificada" required type="date" value={expenseForms[category.key].date} onChange={(e) => setExpenseForms((prev) => ({ ...prev, [category.key]: { ...prev[category.key], date: e.target.value } }))} /><button aria-label={`Agregar a checklist de ${category.name}`} disabled={saving}>+</button></div></form>
                 <div className="expense-list">{(data.expenses || []).map((expense) => <label className={`expense-item checklist-item ${expense.is_completed ? 'is-completed' : ''}`} key={expense.id}><input type="checkbox" checked={Boolean(expense.is_completed)} disabled={Boolean(expense.is_completed) || completingId === expense.id} onChange={() => completeExpense(expense)} /><span className="expense-name">{expense.description}<small>{expense.is_completed ? `Descontado · ${dateTime(expense.completed_at)}` : `Pendiente · ${expense.spent_at}`}</small></span><strong>{currency(expense.amount)}</strong></label>)}{!loading && !data.expenses?.length && <div className="empty-expenses">Aún no hay gastos en este checklist.</div>}</div>
               </article>
@@ -420,6 +521,24 @@ function App() {
           {showAccountForm && <section className="goal-form-card"><div className="goal-form-heading"><div><div className="eyebrow">NUEVA CUENTA</div><h2>Agrega una cuenta</h2></div><span className="round-plus">+</span></div><div className="account-shortcuts"><span>Agregar rápidamente:</span>{[['Bancolombia','bank'],['BBVA','bank'],['Nu','bank'],['Visa','credit'],['Banco de Occidente','bank'],['PeoplePass','wallet']].map(([name,type]) => <button key={name} type="button" onClick={() => setAccountForm({ ...accountForm, name, type })}>{name}</button>)}</div><form className="goal-form" onSubmit={submitAccount}><div className="goal-form-grid"><label>Nombre de la cuenta<input required maxLength="100" placeholder="Ej. Bancolombia nómina" value={accountForm.name} onChange={(event) => setAccountForm({ ...accountForm, name: event.target.value })} /></label><label>Tipo de cuenta<select value={accountForm.type} onChange={(event) => setAccountForm({ ...accountForm, type: event.target.value })}><option value="bank">Cuenta bancaria</option><option value="credit">Tarjeta de crédito</option><option value="wallet">Billetera / PeoplePass</option><option value="other">Otra</option></select></label><label>Saldo inicial<input type="number" min="0" step="0.01" placeholder="$ 0" value={accountForm.initial_balance} onChange={(event) => setAccountForm({ ...accountForm, initial_balance: event.target.value })} /></label></div><button className="primary-button goal-submit" disabled={accountSaving}>{accountSaving ? 'Guardando…' : 'Crear cuenta'} <span>→</span></button></form></section>}
           {accountsLoading && <div className="goals-loading">Cargando tus cuentas…</div>}
           <section className="accounts-grid">{accounts.map((account) => <article className={`account-card account-${account.type} account-brand-${accountBrand(account.name)}`} key={account.id}><div className="account-card-top"><div className="account-brand-mark">{account.type === 'credit' ? '▣' : account.type === 'wallet' ? '◈' : '▤'}</div><span className="account-type-pill">{{ bank: 'Bancaria', credit: 'Crédito', wallet: 'Billetera', other: 'Otra' }[account.type]}</span></div><h2>{account.name}</h2><div className="account-balance-label">Saldo actual</div><strong className="account-balance">{currency(account.balance)}</strong><div className="account-card-footer"><span>{account.transactions.length} {account.transactions.length === 1 ? 'movimiento' : 'movimientos'}</span><button className="account-open-button" onClick={() => setSelectedAccountId(account.id)}>Abrir cuenta <span>→</span></button></div></article>)}{!accountsLoading && accounts.length === 0 && <div className="goals-empty"><div>▤</div><h2>Agrega tu primera cuenta</h2><p>Registra Bancolombia, Nu, Visa, Banco de Occidente, PeoplePass u otra cuenta y empieza a llevar su saldo.</p><button className="primary-button" onClick={() => setShowAccountForm(true)}>Agregar una cuenta <span>→</span></button></div>}</section>
+        </> : view === 'savings' ? <>
+          <section className="page-heading goals-page-heading"><div><div className="eyebrow">TU DINERO GUARDADO</div><h1>Mis ahorros<span className="brand-dot">.</span></h1><p>Organiza tu ahorro en clasificaciones y registra depósitos o retiros.</p></div><button className="primary-button create-goal-button" onClick={() => setShowSavingsForm(!showSavingsForm)}>{showSavingsForm ? 'Cerrar' : '+ Nueva clasificación'}</button></section>
+          {(error || notice) && <div className={`flash ${error ? 'flash-error' : 'flash-success'}`} role="status">{error || notice}<button onClick={() => { setError(''); setNotice('') }} aria-label="Cerrar">×</button></div>}
+          <section className="savings-total-card"><span className="capacity-icon">↗</span><div><small>TOTAL DE AHORRO ACUMULADO</small><strong>{currency(savingsTotal)}</strong><span>Distribuido en {savingsCategories.length} {savingsCategories.length === 1 ? 'clasificación' : 'clasificaciones'}</span></div></section>
+          {showSavingsForm && <section className="goal-form-card"><div className="goal-form-heading"><div><div className="eyebrow">NUEVA CLASIFICACIÓN</div><h2>¿Para qué estás ahorrando?</h2></div><span className="round-plus">↗</span></div><form className="goal-form" onSubmit={submitSavingsCategory}><div className="savings-create-grid"><label>Nombre<input required maxLength="80" placeholder="Ej. Emergencias, viaje, vivienda..." value={savingsForm.name} onChange={(event) => setSavingsForm({ ...savingsForm, name: event.target.value })} /></label><label>Color de la clasificación<select value={savingsForm.color} onChange={(event) => setSavingsForm({ ...savingsForm, color: event.target.value })}><option value="green">Verde</option><option value="blue">Azul</option><option value="violet">Morado</option><option value="orange">Naranja</option></select></label></div><button className="primary-button goal-submit" disabled={savingsSaving}>{savingsSaving ? 'Guardando…' : 'Crear clasificación'} <span>→</span></button></form></section>}
+          {savingsLoading && <div className="goals-loading">Cargando tus ahorros…</div>}
+          <section className="savings-grid">{savingsCategories.map((category) => { const transactionForm = savingsTxnForms[category.id] || { type: 'deposit', amount: '', description: '', date: today() }; return <article className={`savings-category-card savings-${category.color}`} key={category.id}><div className="savings-category-top"><span className="savings-category-icon">↗</span><span className="savings-category-label">Mi clasificación</span></div><h2>{category.name}</h2><small className="savings-balance-caption">Saldo ahorrado</small><strong className="savings-category-balance">{currency(category.balance)}</strong><form className="savings-transaction-form" onSubmit={(event) => submitSavingsTransaction(event, category)}><label>Movimiento<select value={transactionForm.type} onChange={(event) => setSavingsTxnForms({ ...savingsTxnForms, [category.id]: { ...transactionForm, type: event.target.value } })}><option value="deposit">Agregar ahorro</option><option value="withdrawal">Retirar dinero</option></select></label><div className="savings-fields"><input aria-label={`Monto para ${category.name}`} required type="number" min="0.01" step="0.01" max={transactionForm.type === 'withdrawal' ? category.balance : undefined} placeholder="Monto $" value={transactionForm.amount} onChange={(event) => setSavingsTxnForms({ ...savingsTxnForms, [category.id]: { ...transactionForm, amount: event.target.value } })} /><input aria-label={`Concepto para ${category.name}`} maxLength="120" placeholder="Concepto (opcional)" value={transactionForm.description} onChange={(event) => setSavingsTxnForms({ ...savingsTxnForms, [category.id]: { ...transactionForm, description: event.target.value } })} /><input aria-label={`Fecha para ${category.name}`} required type="date" value={transactionForm.date} onChange={(event) => setSavingsTxnForms({ ...savingsTxnForms, [category.id]: { ...transactionForm, date: event.target.value } })} /></div><button className="savings-submit-button" disabled={savingsTxnId === category.id}>{savingsTxnId === category.id ? 'Guardando…' : transactionForm.type === 'deposit' ? 'Agregar al ahorro' : 'Registrar retiro'} <span>{transactionForm.type === 'deposit' ? '+' : '−'}</span></button></form><div className="account-history-heading"><strong>Historial</strong><span>{category.transactions.length} {category.transactions.length === 1 ? 'movimiento' : 'movimientos'}</span></div>{category.transactions.length ? <div className="account-history savings-history">{category.transactions.map((transaction) => <div className="account-transaction" key={transaction.id}><div><strong>{transaction.description || (transaction.type === 'deposit' ? 'Ahorro agregado' : 'Retiro')}</strong><small>{dateTime(transaction.transacted_at)}</small></div><b className={transaction.type === 'withdrawal' ? 'savings-withdrawal' : ''}>{transaction.type === 'withdrawal' ? '−' : '+'} {currency(transaction.amount)}</b></div>)}</div> : <p className="account-history-empty">Los movimientos de esta clasificación aparecerán aquí.</p>}</article> })}{!savingsLoading && savingsCategories.length === 0 && <div className="goals-empty"><div>↗</div><h2>Empieza a organizar tu ahorro</h2><p>Crea clasificaciones a tu gusto, como emergencias, viajes o proyectos. Luego puedes agregar o retirar dinero y consultar el historial.</p><button className="primary-button" onClick={() => setShowSavingsForm(true)}>Crear clasificación <span>→</span></button></div>}</section>
+        </> : view === 'debts' ? <>
+          <section className="page-heading goals-page-heading"><div><div className="eyebrow">FECHAS Y PAGOS PENDIENTES</div><h1>Mis deudas<span className="brand-dot">.</span></h1><p>Registra una deuda cuando quieras y anota la fecha en que te cobran.</p></div><button className="primary-button create-goal-button" onClick={() => setShowDebtForm(!showDebtForm)}>{showDebtForm ? 'Cerrar' : '+ Registrar deuda'}</button></section>
+          {(error || notice) && <div className={`flash ${error ? 'flash-error' : 'flash-success'}`} role="status">{error || notice}<button onClick={() => { setError(''); setNotice('') }} aria-label="Cerrar">×</button></div>}
+          <section className="debt-total-card"><span className="capacity-icon">⌁</span><div><small>TOTAL DE DEUDAS ACTIVAS</small><strong>{currency(debtActiveTotal)}</strong><span>{debts.filter((debt) => debt.status === 'active').length} pagos pendientes · cuentan dentro de Necesidades (50%)</span></div></section>
+          {showDebtForm && <section className="goal-form-card"><div className="goal-form-heading"><div><div className="eyebrow">NUEVA DEUDA</div><h2>¿Qué pago debes realizar?</h2></div><span className="round-plus">⌁</span></div><form className="goal-form" onSubmit={submitDebt}><div className="debt-form-grid"><label>Nombre o concepto<input required maxLength="120" placeholder="Ej. Cuota de tarjeta, préstamo..." value={debtForm.name} onChange={(event) => setDebtForm({ ...debtForm, name: event.target.value })} /></label><label>Valor del cobro<input required type="number" min="0.01" step="0.01" placeholder="Monto $" value={debtForm.amount} onChange={(event) => setDebtForm({ ...debtForm, amount: event.target.value })} /></label><label>Fecha de cobro<input required type="date" value={debtForm.due_date} onChange={(event) => setDebtForm({ ...debtForm, due_date: event.target.value })} /><small>Puedes registrar la deuda antes o después de esta fecha.</small></label></div><button className="primary-button goal-submit" disabled={debtSaving}>{debtSaving ? 'Guardando…' : 'Guardar deuda'} <span>→</span></button></form></section>}
+          <section className="debt-calendar-card"><div className="debt-calendar-heading"><div><div className="eyebrow">CALENDARIO DE COBROS</div><h2>{monthLabel(debtCalendarMonth)}</h2></div><div className="debt-calendar-controls"><button aria-label="Mes anterior" onClick={() => shiftDebtCalendar(-1)}>‹</button><button aria-label="Mes siguiente" onClick={() => shiftDebtCalendar(1)}>›</button></div></div><div className="debt-calendar-grid">{['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map((day) => <div className="debt-calendar-weekday" key={day}>{day}</div>)}{debtCalendarCells.map((day, index) => { if (day === null) return <div className="debt-calendar-day is-empty" key={`empty-${index}`} />; const date = `${debtCalendarMonth}-${String(day).padStart(2,'0')}`; const dayDebts = debts.filter((debt) => debt.status === 'active' && String(debt.due_date).slice(0,10) === date); return <div className={`debt-calendar-day ${date === today() ? 'is-today' : ''} ${dayDebts.length ? 'has-debts' : ''}`} key={date} title={dayDebts.map((debt) => debt.name).join(', ')}><span>{day}</span>{dayDebts.length > 0 && <div className="debt-calendar-marker"><i />{dayDebts.length} deuda{dayDebts.length === 1 ? '' : 's'}<small>{currency(dayDebts.reduce((sum, debt) => sum + Number(debt.amount), 0))}</small></div>}</div> })}</div><div className="debt-calendar-legend"><i /> Fecha de cobro activa</div></section>
+          <section className="debt-list-card"><div className="debt-list-heading"><div><div className="eyebrow">LISTADO E HISTORIAL</div><h2>Deudas registradas</h2></div><span>{debts.length} registros</span></div>{debtsLoading && <div className="goals-loading">Cargando deudas…</div>}{debts.length ? <div className="debt-list">{debts.map((debt) => { const dueDate = String(debt.due_date).slice(0,10); const overdue = debt.status === 'active' && dueDate < today(); return <article className={`debt-row ${debt.status === 'paid' ? 'is-paid' : ''}`} key={debt.id}><div className="debt-status-icon">{debt.status === 'paid' ? '✓' : '⌁'}</div><div className="debt-row-main"><strong>{debt.name}</strong><small>Fecha de cobro: {new Intl.DateTimeFormat('es-CO',{dateStyle:'medium'}).format(new Date(`${dueDate}T12:00:00`))}{debt.paid_at ? ` · Pagada ${dateTime(debt.paid_at)}` : ''}</small></div><strong className="debt-row-amount">{currency(debt.amount)}</strong>{debt.status === 'active' ? <><span className={`debt-status-pill ${overdue ? 'is-overdue' : ''}`}>{overdue ? 'Vencida' : 'Activa'}</span><button className="debt-pay-button" disabled={debtPayingId === debt.id} onClick={() => payDebt(debt)}>{debtPayingId === debt.id ? '…' : 'Marcar pagada'}</button></> : <span className="debt-status-pill is-paid-pill">Pagada</span>}</article> })}</div> : !debtsLoading && <div className="debt-empty"><h3>Aún no tienes deudas registradas</h3><p>Agrega un pago pendiente para verlo en el calendario y en el módulo de Necesidades (50%).</p></div>}</section>
+        </> : view === 'calendar' ? <>
+          <section className="page-heading goals-page-heading"><div><div className="eyebrow">TUS FECHAS IMPORTANTES</div><h1>Calendario<span className="brand-dot">.</span></h1><p>Consulta los días de cobro de tus deudas activas.</p></div><button className="primary-button create-goal-button" onClick={() => { setView('debts'); setShowDebtForm(true) }}>+ Registrar deuda</button></section>
+          {(error || notice) && <div className={`flash ${error ? 'flash-error' : 'flash-success'}`} role="status">{error || notice}<button onClick={() => { setError(''); setNotice('') }} aria-label="Cerrar">×</button></div>}
+          <div className="collection-calendar-layout"><section className="debt-calendar-card collection-calendar"><div className="debt-calendar-heading"><div><div className="eyebrow">FECHAS DE COBRO</div><h2>{monthLabel(debtCalendarMonth)}</h2></div><div className="debt-calendar-controls"><button aria-label="Mes anterior" onClick={() => shiftDebtCalendar(-1)}>‹</button><button aria-label="Mes siguiente" onClick={() => shiftDebtCalendar(1)}>›</button></div></div><div className="debt-calendar-grid">{['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map((day) => <div className="debt-calendar-weekday" key={day}>{day}</div>)}{debtCalendarCells.map((day, index) => { if (day === null) return <div className="debt-calendar-day is-empty" key={`calendar-empty-${index}`} />; const date = `${debtCalendarMonth}-${String(day).padStart(2,'0')}`; const dayDebts = debts.filter((debt) => debt.status === 'active' && String(debt.due_date).slice(0,10) === date); return <button type="button" aria-label={`${date}${dayDebts.length ? `, ${dayDebts.length} cobros` : ''}`} className={`debt-calendar-day calendar-day-button ${date === today() ? 'is-today' : ''} ${date === calendarSelectedDate ? 'is-selected' : ''} ${dayDebts.length ? 'has-debts' : ''}`} key={date} title={dayDebts.map((debt) => debt.name).join(', ')} onClick={() => setCalendarSelectedDate(date)}><span>{day}</span>{dayDebts.length > 0 && <div className="debt-calendar-marker"><i />{dayDebts.length} cobro{dayDebts.length === 1 ? '' : 's'}<small>{currency(dayDebts.reduce((sum, debt) => sum + Number(debt.amount), 0))}</small></div>}</button> })}</div><div className="debt-calendar-legend"><i /> Fecha de cobro activa</div></section><section className="calendar-day-details"><div className="eyebrow">COBROS DEL DÍA</div><h2>{new Intl.DateTimeFormat('es-CO',{dateStyle:'full'}).format(new Date(`${calendarSelectedDate}T12:00:00`))}</h2>{selectedDateDebts.length ? <><div className="calendar-day-total"><span>Total por cobrar</span><strong>{currency(selectedDateDebts.reduce((sum, debt) => sum + Number(debt.amount), 0))}</strong></div><div className="calendar-day-debt-list">{selectedDateDebts.map((debt) => <div className="calendar-day-debt" key={debt.id}><span className="debt-status-icon">⌁</span><div><strong>{debt.name}</strong><small>{currency(debt.amount)}</small></div></div>)}</div></> : <div className="calendar-no-debts"><div>✓</div><strong>No tienes cobros para este día</strong><p>Selecciona otra fecha o registra una deuda nueva.</p><button onClick={() => { setView('debts'); setShowDebtForm(true) }}>Agregar deuda <span>→</span></button></div>}</section></div>
         </> : view === 'profile' ? <>
           <section className="page-heading"><div><div className="eyebrow">TU CUENTA PERSONAL</div><h1>Mi perfil<span className="brand-dot">.</span></h1><p>Personaliza Balance y mantén tus datos actualizados.</p></div></section>
           {(error || notice) && <div className={`flash ${error ? 'flash-error' : 'flash-success'}`} role="status">{error || notice}<button onClick={() => { setError(''); setNotice('') }} aria-label="Cerrar">×</button></div>}
